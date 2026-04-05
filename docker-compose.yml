@@ -1,0 +1,27 @@
+services:
+  state-elevator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${STATE_ELEVATOR_IMAGE_NAME:-state-elevator:local}
+    container_name: ${STATE_ELEVATOR_CONTAINER_NAME:-state-elevator}
+    restart: unless-stopped
+    environment:
+      DOTNET_ENVIRONMENT: ${STATE_ELEVATOR_DOTNET_ENVIRONMENT:-Production}
+      RabbitMqSettings__HostName: ${STATE_ELEVATOR_RABBITMQ_HOST:-broker}
+      RabbitMqSettings__Port: ${STATE_ELEVATOR_RABBITMQ_PORT:-5672}
+      RabbitMqSettings__UserName: ${STATE_ELEVATOR_RABBITMQ_USERNAME:-admin}
+      RabbitMqSettings__Password: ${STATE_ELEVATOR_RABBITMQ_PASSWORD:-CHANGE_ME_RABBITMQ_PASSWORD}
+      RabbitMqSettings__ServerEventsQueue: ${STATE_ELEVATOR_SERVER_EVENTS_QUEUE:-q.state-elevator.server-events}
+      RabbitMqSettings__PingEventsQueue: ${STATE_ELEVATOR_PING_EVENTS_QUEUE:-q.state-elevator.ping-events}
+      RabbitMqSettings__StatusEventsExchange: ${STATE_ELEVATOR_STATUS_EVENTS_EXCHANGE:-statusEventsExchange}
+      RabbitMqSettings__StatusChangedRoutingKey: ${STATE_ELEVATOR_STATUS_CHANGED_ROUTING_KEY:-server.status.changed}
+      RedisSettings__Configuration: redis:6379,password=${STATE_ELEVATOR_REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD},abortConnect=false
+      RedisSettings__KeyPrefix: ${STATE_ELEVATOR_REDIS_KEY_PREFIX:-state-elevator}
+    networks:
+      - pingtower_network
+
+networks:
+  pingtower_network:
+    name: pingtower_network
+    external: true

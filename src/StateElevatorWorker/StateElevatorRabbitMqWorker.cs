@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Application;
 using Application.Configuration;
 using Application.DTOs;
 using Domain;
@@ -117,7 +118,7 @@ public class StateElevatorRabbitMqWorker(
                 return;
             }
 
-            var snapshot = BuildSnapshot(message);
+            var snapshot = StateEvaluation.BuildSnapshot(message);
 
             switch (delivery.RoutingKey)
             {
@@ -201,7 +202,7 @@ public class StateElevatorRabbitMqWorker(
                     UpdatedAt = DateTimeOffset.UtcNow
                 };
 
-            var nextState = BuildNextState(currentState, configuration, ping);
+            var nextState = StateEvaluation.BuildNextState(currentState, configuration, ping);
             await stateStore.SaveStateAsync(
                 ping.ServerId,
                 nextState,
@@ -241,68 +242,11 @@ public class StateElevatorRabbitMqWorker(
         }
     }
 
-    private static ServerRuntimeState BuildNextState(
-        ServerRuntimeState currentState,
-        ServerConfigurationSnapshot configuration,
-        PingRecordedMessage ping)
-    {
-        var now = ping.Timestamp == default ? DateTimeOffset.UtcNow : ping.Timestamp;
-        var isFailure = !ping.IsSuccess;
-
-        if (!isFailure &&
-            configuration.LatencyThresholdMs.HasValue &&
-            ping.LatencyMs is double latencyMs &&
-            latencyMs > configuration.LatencyThresholdMs.Value)
-        {
-            isFailure = true;
-        }
-
-        if (!isFailure)
-        {
-            return new ServerRuntimeState
-            {
-                Status = ServerStatus.UP,
-                ConsecutiveFailures = 0,
-                UpdatedAt = now
-            };
-        }
-
-        var failureCount = currentState.ConsecutiveFailures + 1;
-        var nextStatus = failureCount >= configuration.FailureThreshold
-            ? ServerStatus.DOWN
-            : currentState.Status;
-
-        return new ServerRuntimeState
-        {
-            Status = nextStatus,
-            ConsecutiveFailures = failureCount,
-            UpdatedAt = now
-        };
-    }
-
-    private static ServerConfigurationSnapshot BuildSnapshot(ServerEventMessage message)
-    {
-        return new ServerConfigurationSnapshot
-        {
-            ServerId = message.Server!.Id!,
-            IntervalSec = NormalizeInterval(message.PingSettings!.IntervalSec),
-            LatencyThresholdMs = message.PingSettings.LatencyThresholdMs,
-            FailureThreshold = NormalizeFailureThreshold(message.PingSettings.FailureThreshold),
-            IsActive = message.Server.IsActive,
-            IsDeleted = message.Server.IsDeleted,
-            PingSettingsDeleted = message.PingSettings.IsDeleted
-        };
-    }
-
     private static T? DeserializeMessage<T>(ReadOnlyMemory<byte> body)
     {
         var payload = Encoding.UTF8.GetString(body.Span);
         return JsonSerializer.Deserialize<T>(payload, JsonSerializerOptions);
     }
-
-    private static int NormalizeInterval(int? intervalSec) => intervalSec.GetValueOrDefault() > 0 ? intervalSec.Value : 60;
-
-    private static int NormalizeFailureThreshold(int? failureThreshold) => failureThreshold.GetValueOrDefault() > 0 ? failureThreshold.Value : 1;
 
     private async Task CloseRabbitMqAsync()
     {

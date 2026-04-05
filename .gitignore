@@ -1,6 +1,7 @@
 # Visual Studio / Rider / IDE
 .vs/
 .idea/
+.vscode/
 *.suo
 *.user
 *.userosscache
@@ -18,6 +19,7 @@ packages/
 
 # ASP.NET / Secrets
 appsettings*.json
+!src/StateElevatorWorker/appsettings.example.json
 secrets.json
 *.pfx
 *.key
@@ -35,3 +37,7 @@ secrets.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Other generated files
+*.cache
+*.lock.json

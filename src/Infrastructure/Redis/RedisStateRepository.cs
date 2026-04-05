@@ -28,7 +28,7 @@ public class RedisStateRepository : IServerConfigurationStore, IServerStateStore
         if (value.IsNullOrEmpty)
             return null;
 
-        return JsonSerializer.Deserialize<ServerConfigurationSnapshot>(value!, JsonSerializerOptions);
+        return JsonSerializer.Deserialize<ServerConfigurationSnapshot>(value.ToString(), JsonSerializerOptions);
     }
 
     public async Task SaveConfigurationAsync(ServerConfigurationSnapshot configuration, CancellationToken cancellationToken)
@@ -47,7 +47,7 @@ public class RedisStateRepository : IServerConfigurationStore, IServerStateStore
         if (value.IsNullOrEmpty)
             return null;
 
-        return JsonSerializer.Deserialize<ServerRuntimeState>(value!, JsonSerializerOptions);
+        return JsonSerializer.Deserialize<ServerRuntimeState>(value.ToString(), JsonSerializerOptions);
     }
 
     public async Task SaveStateAsync(string serverId, ServerRuntimeState state, TimeSpan ttl, CancellationToken cancellationToken)
