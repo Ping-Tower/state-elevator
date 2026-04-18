@@ -16,7 +16,7 @@ services:
       RabbitMqSettings__PingEventsQueue: ${STATE_ELEVATOR_PING_EVENTS_QUEUE:-q.state-elevator.ping-events}
       RabbitMqSettings__StatusEventsExchange: ${STATE_ELEVATOR_STATUS_EVENTS_EXCHANGE:-statusEventsExchange}
       RabbitMqSettings__StatusChangedRoutingKey: ${STATE_ELEVATOR_STATUS_CHANGED_ROUTING_KEY:-server.status.changed}
-      RedisSettings__Configuration: redis:6379,password=${STATE_ELEVATOR_REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD},abortConnect=false
+      RedisSettings__Configuration: redis:6379,password=${STATE_ELEVATOR_REDIS_PASSWORD:-CHANGE_ME_REDIS_PASSWORD},defaultDatabase=${STATE_ELEVATOR_REDIS_DATABASE:-1},abortConnect=false
       RedisSettings__KeyPrefix: ${STATE_ELEVATOR_REDIS_KEY_PREFIX:-state-elevator}
     networks:
       - pingtower_network
