@@ -1,0 +1,107 @@
+# Воркер статуса: потребляет server-events и ping-events, публикует statusEventsExchange.
+# HTTP-сервера нет — Service не нужен, проб нет (in-process health — будущий коммит).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: state-elevator
+  namespace: pingtower
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: state-elevator
+  template:
+    metadata:
+      labels:
+        app: state-elevator
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: gitlab-registry
+      containers:
+        - name: state-elevator
+          image: registry.gitlab.com/pingtower/state-elevator:REPLACE_WITH_COMMIT_SHA
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: DOTNET_ENVIRONMENT
+              value: Production
+            - name: RabbitMqSettings__HostName
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: RABBITMQ_HOST
+            - name: RabbitMqSettings__Port
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: RABBITMQ_PORT
+            - name: RabbitMqSettings__UserName
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: RABBITMQ_USER
+            - name: RabbitMqSettings__Password
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq
+                  key: password
+            - name: RabbitMqSettings__ServerEventsQueue
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: STATE_ELEVATOR_SERVER_EVENTS_QUEUE
+            - name: RabbitMqSettings__PingEventsQueue
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: STATE_ELEVATOR_PING_EVENTS_QUEUE
+            - name: RabbitMqSettings__StatusEventsExchange
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: STATE_ELEVATOR_STATUS_EVENTS_EXCHANGE
+            - name: RabbitMqSettings__StatusChangedRoutingKey
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: STATE_ELEVATOR_STATUS_CHANGED_ROUTING_KEY
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: pingtower-infra
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis
+                  key: password
+            - name: RedisSettings__Configuration
+              # db 1 — из дефолтов docker-compose и appsettings воркера.
+              value: "$(REDIS_HOST):$(REDIS_PORT),password=$(REDIS_PASSWORD),defaultDatabase=1,abortConnect=false"
+            - name: RedisSettings__KeyPrefix
+              value: state-elevator
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
